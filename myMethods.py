@@ -2,6 +2,22 @@ import os
 import pandas as pd
 import psycopg2
 
+## Database connection details
+## get server login details
+server_user = input(f'Enter username: ')
+server_pass = input(f'Enter password: ')
+
+DB_CONFIG = {
+    "dbname": "defaultdb",
+    "user": server_user,
+    "password": server_pass,
+    "host": "project-elections-dw-project-elections-dw.j.aivencloud.com",
+    "port": "27706"
+}
+
+## Connect to the database
+conn = psycopg2.connect(**DB_CONFIG)
+cur = conn.cursor()
 
 def run_sql_in_server(file_path):
     with open(file_path, 'r') as file:
