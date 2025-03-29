@@ -2,34 +2,17 @@ import os
 import pandas as pd
 import psycopg2
 
-## Database connection details
-## get server login details
-server_user = input(f'Enter username: ')
-server_pass = input(f'Enter password: ')
-
-DB_CONFIG = {
-    "dbname": "defaultdb",
-    "user": server_user,
-    "password": server_pass,
-    "host": "project-elections-dw-project-elections-dw.j.aivencloud.com",
-    "port": "27706"
-}
-
-## Connect to the database
-conn = psycopg2.connect(**DB_CONFIG)
-cur = conn.cursor()
-
-def run_sql_in_server(file_path):
+def run_sql_in_server(file_path, _cursor):
     with open(file_path, 'r') as file:
-        cur.execute(file.read())
+        _cursor.execute(file.read())
     
-def read_data_from_table(table_name):
+def read_data_from_table(table_name, _cursor):
     '''
     Read data from the specified table and print it.
     :param table_name: Name of the table to read from
     '''
-    cur.execute(f"SELECT * FROM {table_name};")
-    rows = cur.fetchall()
+    _cursor.execute(f"SELECT * FROM {table_name};")
+    rows = _cursor.fetchall()
     for row in rows:
         print(row)
     
