@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 
 def run_sql_in_server(file_path, _cursor):
@@ -30,22 +31,19 @@ def iter_file_paths(directory: str):
         if os.path.isfile(filepath):
             yield filepath
     
-def process_txt_file(source_path:str, target_dir:str, *, _encoding='utf-8', _write=False, name=None):
+def process_txt_file(source_path:str, *, _encoding='utf-8'):
     """
     Process a .txt file with fixed-width formatted data.
     This function:
     - Checks that the source file has a .txt extension.
     - Reads the file using pandas.read_fwf to parse the fixed-width format, with the provided encoding.
-    - May save the DataFrame as an Excel file (with .xlsx extension) in the specified target directory.
     - Returns the resulting DataFrame.
 
     Parameters:
         source_path (str): Path to the input .txt file.
         target_dir (str): Path to the directory where the output .xlsx file will be saved.
         _encoding (kwarg, str): Encoding to use when reading the file. Default is 'utf-8'.
-        _write (kwarg, bool): If True, write the DataFrame to an Excel file. Default is False.
-        name (kwarg, str): Name of the output Excel file (without extension). If None, uses the base name of the input file.
-
+    
     Returns:
         pandas.DataFrame: The data read from the txt file.
 
@@ -62,20 +60,6 @@ def process_txt_file(source_path:str, target_dir:str, *, _encoding='utf-8', _wri
         df = pd.read_fwf(source_path, encoding=_encoding, header=None)
     except Exception as e:
         raise ValueError("Error reading fixed-width file: " + str(e))
-
-    ## write the DataFrame to an Excel file if _write is True with provided name
-    if _write:
-        ## Construct the output file path using the same base name but with .xls extension
-        if name is not None:
-            base_name = name.lower()
-        else:
-            base_name = os.path.splitext(os.path.basename(source_path))[0]
-            output_file = os.path.join(target_dir, base_name + ".xlsx").lower()
-        try:
-            ## Save the DataFrame to an Excel file
-            df.to_excel(output_file, header=False, index=False)
-        except Exception as e:
-            raise ValueError("Error saving Excel file: " + str(e))
 
     return df
 
@@ -103,7 +87,7 @@ def parse_FC_data(df):
     text_part = col0.str.extract(r'^\d+(.*)$')[0].str.strip()
     
     ## Concatenate the extracted numeric part as a new first column, the extracted text part as the next column, then all remaining columns.
-    new_df = pd.concat([numeric_part, text_part, df.iloc[:, 1:]], axis=1)
+    new_df = pd.concat([numeric_part.astype('int64'), text_part, df.iloc[:, 1:]], axis=1)
     
     ## Reset column names to default integer indices
     new_df.columns = range(new_df.shape[1])
