@@ -87,7 +87,7 @@ def parse_FC_data(df):
     text_part = col0.str.extract(r'^\d+(.*)$')[0].str.strip()
     
     ## Concatenate the extracted numeric part as a new first column, the extracted text part as the next column, then all remaining columns.
-    new_df = pd.concat([numeric_part.astype('int64'), text_part, df.iloc[:, 1:]], axis=1)
+    new_df = pd.concat([numeric_part, text_part, df.iloc[:, 1:]], axis=1)
     
     ## Reset column names to default integer indices
     new_df.columns = range(new_df.shape[1])
