@@ -59,7 +59,7 @@ def process_txt_file(source_path:str, target_dir:str, *, _encoding='utf-8', _wri
 
     try:
         ## Read the txt file using read_fwf which auto-detects fixed-width columns
-        df = pd.read_fwf(source_path, encoding=_encoding)
+        df = pd.read_fwf(source_path, encoding=_encoding, header=None)
     except Exception as e:
         raise ValueError("Error reading fixed-width file: " + str(e))
 
@@ -81,33 +81,32 @@ def process_txt_file(source_path:str, target_dir:str, *, _encoding='utf-8', _wri
 
 def parse_FC_data(df):
     """
-    Process a DataFrame containing municipal data where:
-    1. Header row should be treated as data
-    2. First column contains combined numeric + text data that needs splitting
+    Process a DataFrame containing municipal data where the first column contains combined numeric + text data (e.g. "123456Municipality Name").
+    
+    This function splits the first column into two parts:
+      - A new leftmost column containing the numeric code.
+      - The original first column is replaced with only the non-numeric (text) part.
     
     Args:
-        df (pandas.DataFrame): Input DataFrame
-    
+        df (pandas.DataFrame): Input DataFrame.
+        
     Returns:
-        pandas.DataFrame: Modified DataFrame with split columns
+        pandas.DataFrame: Modified DataFrame with split first column.
     """
-    ## Reset column names to numeric indices
-    df.columns = range(len(df.columns))
+
+    ## Ensure values are treated as strings
+    col0 = df[0].astype(str)
+
+    ## Extract numeric part from the first column using a regex
+    numeric_part = col0.str.extract(r'^(\d+)')[0]
+    ## Extract text part from the first column (trim any whitespace)
+    text_part = col0.str.extract(r'^\d+(.*)$')[0].str.strip()
     
-    ## Add header row back as first row of data
-    df = pd.concat([pd.DataFrame([df.columns.values], columns=df.columns), df])
-    
-    ## Extract numeric part from first column
-    numeric_part = df[0].str.extract(r'(\d+)')[0]
-    
-    ## Extract text part from first column
-    text_part = df[0].str.extract(r'\d+(.*$)')[0]
-    
-    ## Create new DataFrame with split columns
+    ## Concatenate the extracted numeric part as a new first column, the extracted text part as the next column, then all remaining columns.
     new_df = pd.concat([numeric_part, text_part, df.iloc[:, 1:]], axis=1)
     
-    ## Reset column names to numeric indices
-    new_df.columns = range(len(new_df.columns))
+    ## Reset column names to default integer indices
+    new_df.columns = range(new_df.shape[1])
     
     return new_df
 
