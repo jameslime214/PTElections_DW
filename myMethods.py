@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import psycopg2
 
 def run_sql_in_server(file_path, _cursor):
     with open(file_path, 'r') as file:
@@ -31,19 +30,21 @@ def iter_file_paths(directory: str):
         if os.path.isfile(filepath):
             yield filepath
     
-def process_txt_file(source_path:str, target_dir:str, _encoding='utf-8'):
+def process_txt_file(source_path:str, target_dir:str, *, _encoding='utf-8', _write=False, name=None):
     """
     Process a .txt file with fixed-width formatted data.
-    This function
     This function:
     - Checks that the source file has a .txt extension.
-    - Reads the file using pandas.read_fwf to parse the fixed-width format.
-    - Saves the DataFrame as an Excel file (with .xlsx extension) in the specified target directory.
+    - Reads the file using pandas.read_fwf to parse the fixed-width format, with the provided encoding.
+    - May save the DataFrame as an Excel file (with .xlsx extension) in the specified target directory.
     - Returns the resulting DataFrame.
 
     Parameters:
         source_path (str): Path to the input .txt file.
         target_dir (str): Path to the directory where the output .xlsx file will be saved.
+        _encoding (kwarg, str): Encoding to use when reading the file. Default is 'utf-8'.
+        _write (kwarg, bool): If True, write the DataFrame to an Excel file. Default is False.
+        name (kwarg, str): Name of the output Excel file (without extension). If None, uses the base name of the input file.
 
     Returns:
         pandas.DataFrame: The data read from the txt file.
@@ -52,27 +53,63 @@ def process_txt_file(source_path:str, target_dir:str, _encoding='utf-8'):
         ValueError: If the file extension is not .txt or if there is an error reading the file.
     """
 
-    # Ensure the file is a .txt file
+    ## Ensure the file is a .txt file
     if os.path.splitext(source_path)[1].lower() != '.txt':
         raise ValueError("Unsupported file format. This function only processes .txt files.")
 
     try:
-        # Read the txt file using read_fwf which auto-detects fixed-width columns
+        ## Read the txt file using read_fwf which auto-detects fixed-width columns
         df = pd.read_fwf(source_path, encoding=_encoding)
     except Exception as e:
         raise ValueError("Error reading fixed-width file: " + str(e))
 
-    # Construct the output file path using the same base name but with .xls extension
-    base_name = os.path.splitext(os.path.basename(source_path))[0]
-    output_file = os.path.join(target_dir, base_name + ".xlsx")
-
-    try:
-        # Save the DataFrame to an Excel file
-        df.to_excel(output_file, index=False)
-    except Exception as e:
-        raise ValueError("Error saving Excel file: " + str(e))
+    ## write the DataFrame to an Excel file if _write is True with provided name
+    if _write:
+        ## Construct the output file path using the same base name but with .xls extension
+        if name is not None:
+            base_name = name.lower()
+        else:
+            base_name = os.path.splitext(os.path.basename(source_path))[0]
+            output_file = os.path.join(target_dir, base_name + ".xlsx").lower()
+        try:
+            ## Save the DataFrame to an Excel file
+            df.to_excel(output_file, header=False, index=False)
+        except Exception as e:
+            raise ValueError("Error saving Excel file: " + str(e))
 
     return df
+
+def parse_FC_data(df):
+    """
+    Process a DataFrame containing municipal data where:
+    1. Header row should be treated as data
+    2. First column contains combined numeric + text data that needs splitting
+    
+    Args:
+        df (pandas.DataFrame): Input DataFrame
+    
+    Returns:
+        pandas.DataFrame: Modified DataFrame with split columns
+    """
+    ## Reset column names to numeric indices
+    df.columns = range(len(df.columns))
+    
+    ## Add header row back as first row of data
+    df = pd.concat([pd.DataFrame([df.columns.values], columns=df.columns), df])
+    
+    ## Extract numeric part from first column
+    numeric_part = df[0].str.extract(r'(\d+)')[0]
+    
+    ## Extract text part from first column
+    text_part = df[0].str.extract(r'\d+(.*$)')[0]
+    
+    ## Create new DataFrame with split columns
+    new_df = pd.concat([numeric_part, text_part, df.iloc[:, 1:]], axis=1)
+    
+    ## Reset column names to numeric indices
+    new_df.columns = range(len(new_df.columns))
+    
+    return new_df
 
 def generate_ddl_from_file(file_path):
     """
@@ -85,11 +122,11 @@ def generate_ddl_from_file(file_path):
         str: SQL DDL statement
     """
     
-    # Extract the file extension using os.path.splitext
+    ## Extract the file extension using os.path.splitext
     _, ext = os.path.splitext(file_path)
     file_extension = ext.lower()[1:]  # Remove the leading dot
 
-    # Check if the file extension is valid
+    ## Check if the file extension is valid
     if file_extension == 'csv':
         df = pd.read_csv(file_path)
     elif file_extension in ['xls', 'xlsx']:
@@ -105,19 +142,19 @@ def generate_ddl_from_file(file_path):
         'bool': 'BOOLEAN'
     }
     
-    # Use os.path.basename and os.path.splitext to extract the table name
+    ## Use os.path.basename and os.path.splitext to extract the table name
     table_name = os.path.splitext(os.path.basename(file_path))[0].lower()
     columns = []
     for column, dtype in df.dtypes.items():
         sql_type = dtype_mapping.get(str(dtype), 'TEXT')
         columns.append(f'    "{column}" {sql_type}')
     
-    # Data table creation DDL
+    ## Data table creation DDL
     ddl = f"CREATE TABLE IF NOT EXISTS {table_name} (\n"
     ddl += ",\n".join(columns)
     ddl += "\n);"
     
-    # Data insertion DDL / Extraction step of the ETL process
+    ## Data insertion DDL / Extraction step of the ETL process
     columns_list = ", ".join([f'"{col}"' for col in df.columns])
     insert_statements = []
     for index, row in df.iterrows():
