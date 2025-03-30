@@ -31,6 +31,49 @@ def iter_file_paths(directory: str):
         if os.path.isfile(filepath):
             yield filepath
     
+def process_txt_file(source_path:str, target_dir:str):
+    """
+    Process a .txt file with fixed-width formatted data.
+    This function
+    This function:
+    - Checks that the source file has a .txt extension.
+    - Reads the file using pandas.read_fwf to parse the fixed-width format.
+    - Saves the DataFrame as an Excel file (with .xlsx extension) in the specified target directory.
+    - Returns the resulting DataFrame.
+
+    Parameters:
+        source_path (str): Path to the input .txt file.
+        target_dir (str): Path to the directory where the output .xlsx file will be saved.
+
+    Returns:
+        pandas.DataFrame: The data read from the txt file.
+
+    Raises:
+        ValueError: If the file extension is not .txt or if there is an error reading the file.
+    """
+
+    # Ensure the file is a .txt file
+    if os.path.splitext(source_path)[1].lower() != '.txt':
+        raise ValueError("Unsupported file format. This function only processes .txt files.")
+
+    try:
+        # Read the txt file using read_fwf which auto-detects fixed-width columns
+        df = pd.read_fwf(source_path)
+    except Exception as e:
+        raise ValueError("Error reading fixed-width file: " + str(e))
+
+    # Construct the output file path using the same base name but with .xls extension
+    base_name = os.path.splitext(os.path.basename(source_path))[0]
+    output_file = os.path.join(target_dir, base_name + ".xlsx")
+
+    try:
+        # Save the DataFrame to an Excel file
+        df.to_excel(output_file, index=False)
+    except Exception as e:
+        raise ValueError("Error saving Excel file: " + str(e))
+
+    return df
+
 def generate_ddl_from_file(file_path):
     """
     Generate SQL DDL from a CSV or Excel file
