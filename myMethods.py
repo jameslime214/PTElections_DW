@@ -31,7 +31,7 @@ def iter_file_paths(directory: str):
         if os.path.isfile(filepath):
             yield filepath
     
-def process_txt_file(source_path:str, target_dir:str):
+def process_txt_file(source_path:str, target_dir:str, _encoding='utf-8'):
     """
     Process a .txt file with fixed-width formatted data.
     This function
@@ -58,7 +58,7 @@ def process_txt_file(source_path:str, target_dir:str):
 
     try:
         # Read the txt file using read_fwf which auto-detects fixed-width columns
-        df = pd.read_fwf(source_path)
+        df = pd.read_fwf(source_path, encoding=_encoding)
     except Exception as e:
         raise ValueError("Error reading fixed-width file: " + str(e))
 
