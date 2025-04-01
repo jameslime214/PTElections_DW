@@ -210,69 +210,44 @@ def parse_FC_data_2(df: pd.DataFrame) -> pd.DataFrame:
     ## Create a new DataFrame with the extracted parts and all remaining columns
     result_df = pd.concat([numeric_part, text_part, new_df.iloc[:, 1:]], axis=1)
     
+    ## Reset the column indeces
+    result_df.columns = range(len(result_df.columns))
+    
     return result_df
 
 
-def parse_FC_data_3(df: pd.DataFrame, file_name: str) -> pd.DataFrame:
+def parse_FC76_data(df):
     """
-    Process the columns between location name and voting data in FC (freguesia/conselho) dataframes.
+    Process the intermediate column (column index 2) in 76 files.
     
-    Different files have different formats:
-    - ar76c/f: Contains one column between name and total votes info
-    - ar79c/f and later: Contains three columns between name and total votes info
+    For 76 files, the intermediate column is a string with a fixed pattern:
+      - If there's no voting data, it appears as "500{spaces}0".
+      - Otherwise, it starts with extraneous zeros, contains the important numeric value, and ends with a trailing '0'.
     
-    This function handles these differences and ensures the intermediate columns are properly formatted as numerical data.
-    
-    Parameters:
-        df: Input DataFrame (after applying parse_FC_data_1 and parse_FC_data_2)
-        file_name: Base name of the file (e.g., 'Ar76c', 'AR79F') to determine format
-        
-    Returns:
-        pandas.DataFrame: DataFrame with intermediate columns properly formatted
+    This function extracts the numeric part and returns the column as an int64.
     """
-    ## Create a copy to avoid modifying the original DataFrame
-    result_df = df.copy()
+    import pandas as pd
+    cleaned_df = df.copy()
     
-    ## Lowercase the file name for consistent comparisons
-    file_name_lower = file_name.lower()
-    
-    ## The first two columns are now: code and name (after parse_FC_data_2)
-    ## We need to identify where the 4 total votes columns start
-    
-    ## Find the index of the first column of party info (which is an object/string type)
-    ## After the total votes columns (which should be 4 columns with numeric data)
-    party_cols_start = None
-    
-    ## Based on notes, the starting column for party information varies by file
-    if 'ar76' in file_name_lower:
-        ## For ar76 files, party columns start at index 6
-        party_cols_start = 6
-    else:
-        ## For ar79 and later files, party columns start at index 8
-        party_cols_start = 8
-    
-    ## The 4 total votes columns start 4 positions before the party columns
-    total_votes_start = party_cols_start - 4
-    
-    ## Columns between name column (index 1) and total_votes_start need processing
-    if 'ar76' in file_name_lower:
-        ## For ar76 files, there's one column to process
-        if len(result_df.columns) > 2:  # Ensure we have at least one column to process
-            ## Convert the intermediate column to numeric, with errors coerced to NaN
-            result_df[2] = pd.to_numeric(result_df[2], errors='coerce')
-            
-            ## If the value is 500, it means no voting data for this location
-            ## Other values represent actual data
-            ## Values should already be numeric after parse_FC_data_1 removed '0' columns
-    else:
-        ## For ar79 and later files, there are three columns to process (or fewer if some were removed by parse_FC_data_1)
-        ## The second column (index 3) contains useful data, the others were likely removed by parse_FC_data_1
-        column_indices = [i for i in range(2, total_votes_start)]
-        for idx in column_indices:
-            if idx in result_df.columns:
-                result_df[idx] = pd.to_numeric(result_df[idx], errors='coerce')
-    
-    return result_df
+    def process_value(val):
+        # Convert value to string and strip surrounding whitespace.
+        s = str(val).strip()
+        # If no voting data, pattern starts with "500"
+        if s.startswith("500"):
+            return 5000
+        else:
+            # Remove trailing '0' if present.
+            if s.endswith("0"):
+                s = s[:-1]
+            # Remove leading zeros.
+            s = s.lstrip("0")
+            try:
+                return int(s) if s != "" else 0
+            except Exception:
+                return pd.NA
+
+    cleaned_df[2] = cleaned_df[2].apply(process_value).astype("Int64")
+    return cleaned_df
 
 
 def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
