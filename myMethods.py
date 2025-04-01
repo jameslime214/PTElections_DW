@@ -123,22 +123,26 @@ def save_dataframe_to_excel(df: pd.DataFrame, output_path: str) -> str:
     Returns:
         The path of the file that was saved.
     """
-    # Ensure the directory exists
+    ## Ensure the directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    # Split the file name into base and extension
+    ## Split the file name into base and extension
     base, ext = os.path.splitext(output_path)
     new_output_path = output_path
     counter = 1
     
-    # Loop until we find a file name that doesn't exist
+    ## Loop until we find a file name that doesn't exist
     while os.path.exists(new_output_path):
         new_output_path = f"{base}_{counter}{ext}"
         counter += 1
     
-    # Write the DataFrame to the new Excel file
-    with pd.ExcelWriter(new_output_path, engine='openpyxl', mode='w') as writer:
-        df.to_excel(writer, index=False)
+    ## Write the DataFrame to the new Excel file
+    try:
+        with pd.ExcelWriter(new_output_path, engine='openpyxl', mode='w') as writer:
+            df.to_excel(writer, index=False)
+        print(f"Successfully saved: {new_output_path} to Extracted_Data folder")
+    except Exception as e:
+        raise ValueError(f"Error writing Excel file: {str(e)}")
     
     return new_output_path
 
