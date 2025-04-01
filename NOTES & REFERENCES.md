@@ -16,8 +16,8 @@ Conselhos files:
 - The four columns preceeding the first party's information are total votes data.
 - First column contains both Freguesia code and name, must be split.
 - First column with party accronym, per file: {76:6, 79:8, 80:8, 83:8, 85:8, 87:8, 91:8, 95:8}
-  - ar76c: Contains only one column between conselho names and total voting information. This column contains a string of numbers: '500       0' for conselho with no voting information and f'{some amount of 0's}{important number}{single trailing 0}' for every other conselho
-  - ar79c and later: Contains 3 columns between conselho name and total votes info. 1st and 3rd are filled with 0's, useless. 2nd contains useful data.
+  - ar76c: Contains only one column between conselho names and total voting information. This column contains a string of numbers: '500       0' for conselho with no voting information and f'{some amount of 0's}{important number}{single trailing 0}' for every other conselho. Both are of the string data type.
+  - ar79c and later: Contains 3 columns between conselho name and total votes info. 1st and 3rd are filled with 0's, useless. 2nd contains useful data, in numerical format.
 
 Freguesias files INFO:
 - Header index row.
