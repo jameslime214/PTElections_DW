@@ -147,36 +147,133 @@ def save_dataframe_to_excel(df: pd.DataFrame, output_path: str) -> str:
     return new_output_path
 
 
+def parse_FC_data_1(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove columns from a DataFrame where all values are either 0, '0', or null.
+    
+    This function is intended for cleaning the dataframes extracted from text files
+    where some columns contain only zeros or null values and don't contribute 
+    meaningful information.
+    
+    Parameters:
+        df: Input DataFrame to clean.
+        
+    Returns:
+        pandas.DataFrame: DataFrame with zero-only columns removed.
+    """
+    ## Create a copy to avoid modifying the original DataFrame
+    cleaned_df = df.copy()
+    
+    ## List to store columns that should be kept
+    columns_to_keep = []
+    
+    for col in cleaned_df.columns:
+        ## Check if column contains only 0s (numeric), '0' (string), or null values
+        is_all_zeros = cleaned_df[col].apply(
+            lambda x: x == 0 or x == '0' or pd.isna(x)
+        ).all()
+        
+        ## If not all zeros, keep the column
+        if not is_all_zeros:
+            columns_to_keep.append(col)
+    
+    ## Return DataFrame with only the columns to keep
+    return cleaned_df[columns_to_keep]
+
+
 def parse_FC_data_2(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Process a DataFrame containing municipal or parish data where the first column contains combined numeric + text data (e.g. "123456Municipality Name").
+    Process a DataFrame containing municipal or parish data where the first column contains 
+    combined numeric + text data (e.g. "123456Municipality Name").
     
     This function splits the first column into two parts:
       - A new leftmost column containing the numeric code.
       - The original first column is replaced with only the non-numeric (text) part.
     
-    Args:
+    Parameters:
         df: Input DataFrame.
         
     Returns:
         pandas.DataFrame: Modified DataFrame with split first column.
     """
-
+    ## Create a copy to avoid modifying the original DataFrame
+    new_df = df.copy()
+    
     ## Ensure values are treated as strings
-    col0 = df[0].astype(str)
+    col0 = new_df[0].astype(str)
 
     ## Extract numeric part from the first column using a regex
-    numeric_part = col0.str.extract(r'^(\d+)')[0].astype['int64']
+    numeric_part = col0.str.extract(r'^(\d+)')[0].astype('int64')
+    
     ## Extract text part from the first column (trim any whitespace)
     text_part = col0.str.extract(r'^\d+(.*)$')[0].str.strip()
     
-    ## Concatenate the extracted numeric part as a new first column, the extracted text part as the next column, then all remaining columns.
-    new_df = pd.concat([numeric_part, text_part, df.iloc[:, 1:]], axis=1)
+    ## Create a new DataFrame with the extracted parts and all remaining columns
+    result_df = pd.concat([numeric_part, text_part, new_df.iloc[:, 1:]], axis=1)
     
-    ## Reset column names to default integer indices
-    new_df.columns = range(new_df.shape[1])
+    return result_df
+
+
+def parse_FC_data_3(df: pd.DataFrame, file_name: str) -> pd.DataFrame:
+    """
+    Process the columns between location name and voting data in FC (freguesia/conselho) dataframes.
     
-    return new_df
+    Different files have different formats:
+    - ar76c/f: Contains one column between name and total votes info
+    - ar79c/f and later: Contains three columns between name and total votes info
+    
+    This function handles these differences and ensures the intermediate columns are properly formatted as numerical data.
+    
+    Parameters:
+        df: Input DataFrame (after applying parse_FC_data_1 and parse_FC_data_2)
+        file_name: Base name of the file (e.g., 'Ar76c', 'AR79F') to determine format
+        
+    Returns:
+        pandas.DataFrame: DataFrame with intermediate columns properly formatted
+    """
+    ## Create a copy to avoid modifying the original DataFrame
+    result_df = df.copy()
+    
+    ## Lowercase the file name for consistent comparisons
+    file_name_lower = file_name.lower()
+    
+    ## The first two columns are now: code and name (after parse_FC_data_2)
+    ## We need to identify where the 4 total votes columns start
+    
+    ## Find the index of the first column of party info (which is an object/string type)
+    ## After the total votes columns (which should be 4 columns with numeric data)
+    party_cols_start = None
+    
+    ## Based on notes, the starting column for party information varies by file
+    if 'ar76' in file_name_lower:
+        ## For ar76 files, party columns start at index 6
+        party_cols_start = 6
+    else:
+        ## For ar79 and later files, party columns start at index 8
+        party_cols_start = 8
+    
+    ## The 4 total votes columns start 4 positions before the party columns
+    total_votes_start = party_cols_start - 4
+    
+    ## Columns between name column (index 1) and total_votes_start need processing
+    if 'ar76' in file_name_lower:
+        ## For ar76 files, there's one column to process
+        if len(result_df.columns) > 2:  # Ensure we have at least one column to process
+            ## Convert the intermediate column to numeric, with errors coerced to NaN
+            result_df[2] = pd.to_numeric(result_df[2], errors='coerce')
+            
+            ## If the value is 500, it means no voting data for this location
+            ## Other values represent actual data
+            ## Values should already be numeric after parse_FC_data_1 removed '0' columns
+    else:
+        ## For ar79 and later files, there are three columns to process (or fewer if some were removed by parse_FC_data_1)
+        ## The second column (index 3) contains useful data, the others were likely removed by parse_FC_data_1
+        column_indices = [i for i in range(2, total_votes_start)]
+        for idx in column_indices:
+            if idx in result_df.columns:
+                result_df[idx] = pd.to_numeric(result_df[idx], errors='coerce')
+    
+    return result_df
 
 
 def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
