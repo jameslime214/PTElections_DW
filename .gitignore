@@ -2,3 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Extracted data excel files
+DATA FILES/Extracted_Data/
+
+# Cleaned data excel files
+DATA FILES/Cleaned_Data/
