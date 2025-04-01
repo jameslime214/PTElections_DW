@@ -57,7 +57,7 @@ def iter_file_paths(directory: str):
             yield filepath
     
 
-def extract_dataframe_from_txt(file_path: str, _encoding: str = 'cp1252') -> pd.DataFrame:
+def extract_dataframe_from_txt(file_path: str, *, _encoding: str = 'utf-8') -> pd.DataFrame:
     """
     Extract data from a text file into a pandas DataFrame without any cleaning.
     
@@ -138,53 +138,12 @@ def save_dataframe_to_excel(df: pd.DataFrame, output_path: str) -> str:
     
     # Write the DataFrame to the new Excel file
     with pd.ExcelWriter(new_output_path, engine='openpyxl', mode='w') as writer:
-        df.to_excel(writer, header=False, index=False)
+        df.to_excel(writer, index=False)
     
     return new_output_path
-    
-
-def process_txt_file(source_path: str, *, _encoding: str = 'utf-8', has_header: bool = False) -> pd.DataFrame:
-    """
-    Process a .txt file containing fixed-width formatted data.
-
-    This function performs the following steps:
-      - Verifies that the provided file has a .txt extension.
-      - Reads the file using pandas.read_fwf to parse fixed-width formatted data.
-      - Determines whether the file contains a header row based on the 'has_header' flag.
-      - Returns the resulting DataFrame.
-
-    Parameters:
-        source_path: Path to the input .txt file.
-        _encoding (optional): Encoding to use when reading the file. Default is 'utf-8'.
-        has_header (optional): Indicates whether the file contains a header row, defaults to False.
-            * True to infer the header row (do not pass the header argument),
-            * False to treat the file as raw data (pass header=None).
-    
-    Returns:
-        pandas.DataFrame: The data read from the text file.
-
-    Raises:
-        ValueError: If the file extension is not .txt or if an error occurs while reading the file.
-    """
-    ## Ensure the file has a .txt extension
-    if os.path.splitext(source_path)[1].lower() != '.txt':
-        raise ValueError("Unsupported file format. This function only processes .txt files.")
-
-    try:
-        ## Choose the appropriate header handling based on the has_header flag
-        if has_header:
-            ## Do not pass the header parameter to let pandas infer the header row
-            df = pd.read_fwf(source_path, encoding=_encoding)
-        else:
-            ## Explicitly specify that there is no header row
-            df = pd.read_fwf(source_path, encoding=_encoding, header=None)
-    except Exception as e:
-        raise ValueError("Error reading fixed-width file: " + str(e))
-    
-    return df
 
 
-def parse_FC_data(df: pd.DataFrame) -> pd.DataFrame:
+def parse_FC_data_2(df: pd.DataFrame) -> pd.DataFrame:
     """
     Process a DataFrame containing municipal or parish data where the first column contains combined numeric + text data (e.g. "123456Municipality Name").
     
@@ -203,7 +162,7 @@ def parse_FC_data(df: pd.DataFrame) -> pd.DataFrame:
     col0 = df[0].astype(str)
 
     ## Extract numeric part from the first column using a regex
-    numeric_part = col0.str.extract(r'^(\d+)')[0]
+    numeric_part = col0.str.extract(r'^(\d+)')[0].astype['int64']
     ## Extract text part from the first column (trim any whitespace)
     text_part = col0.str.extract(r'^\d+(.*)$')[0].str.strip()
     
@@ -297,3 +256,4 @@ def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
     ddl += "\n"
     
     return df, ddl
+    
