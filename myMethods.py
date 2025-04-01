@@ -41,7 +41,7 @@ def read_data_from_table(table_name: str, _cursor: psycopg2.extensions.cursor):
         print(row)
 
 
-def iter_file_paths(directory: str):
+def iter_filepaths(directory: str):
     """
     Yields the full path for each file in the specified directory.
     
@@ -109,7 +109,7 @@ def extract_dataframe_from_excel(file_path: str) -> pd.DataFrame:
         raise ValueError(f"Error reading Excel file: {str(e)}")
 
 
-def save_dataframe_to_excel(df: pd.DataFrame, output_path: str) -> str:
+def save_dataframe_to_excel(df: pd.DataFrame, output_path: str) -> None:
     """
     Save a DataFrame to an Excel file without overwriting an existing file.
     
@@ -121,30 +121,29 @@ def save_dataframe_to_excel(df: pd.DataFrame, output_path: str) -> str:
         output_path: Full path where the Excel file will be saved
         
     Returns:
-        The path of the file that was saved.
+        None
     """
     ## Ensure the directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     ## Split the file name into base and extension
     base, ext = os.path.splitext(output_path)
-    new_output_path = output_path
     counter = 1
     
     ## Loop until we find a file name that doesn't exist
-    while os.path.exists(new_output_path):
-        new_output_path = f"{base}_{counter}{ext}"
+    while os.path.exists(output_path):
+        output_path = f"{base}_{counter}{ext}"
         counter += 1
     
     ## Write the DataFrame to the new Excel file
     try:
-        with pd.ExcelWriter(new_output_path, engine='openpyxl', mode='w') as writer:
+        with pd.ExcelWriter(output_path, engine='openpyxl', mode='w') as writer:
             df.to_excel(writer, index=False)
-        print(f"Successfully saved: {new_output_path} to Extracted_Data folder")
+        saved_filename = os.path.basename(output_path)
+        target_directory = os.path.dirname(output_path)
+        print(f"Successfully saved {saved_filename} to {target_directory}")
     except Exception as e:
         raise ValueError(f"Error writing Excel file: {str(e)}")
-    
-    return new_output_path
 
 
 def parse_FC_data_1(df: pd.DataFrame) -> pd.DataFrame:
