@@ -250,6 +250,68 @@ def parse_FC76_data(df):
     return cleaned_df
 
 
+def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
+    """
+    Create a dictionary mapping the DataFrame's column indices to new names based on file metadata.
+    
+    Parameters:
+        _ext: The file extension. A mapping is only created if this is ".txt".
+        _name: The base name of the file which determines naming for the first two columns.
+        _df: The DataFrame to be processed.
+
+    Returns:
+        A dictionary where the keys are the original column indices and the values are the new column names.
+
+    Naming rules:
+        - Only applies when file_ext is ".txt".
+        - If base_name ends with "c": first two columns correspond to municipality code and name.
+        - If base_name ends with "f": first two columns correspond to parish code and name.
+        - In all cases:
+            Column 2 is named "num".
+            Column 3-6 are total vote data.
+        - For any remaining columns (from index 7 onward), assign (party acronym, vote count) pairs.
+    """
+    ## Only create a mapping for .txt files.
+    if _ext.lower() != ".txt":
+        return {}
+
+    mapping = {}
+    ## Determine names for the first two columns based on base_name.
+    if _name.endswith("c"):
+        mapping[0] = "municipality_code"
+        mapping[1] = "municipality_name"
+    elif _name.endswith("f"):
+        mapping[0] = "parish_code"
+        mapping[1] = "parish_name"
+    else:
+        ## Fallback names if base_name doesn't end with 'c' or 'f'
+        mapping[0] = "code"
+        mapping[1] = "name"
+
+    ## Set fixed names for the next five columns.
+    mapping[2] = "num"
+    mapping[3] = "total_registered"
+    mapping[4] = "total_votes"
+    mapping[5] = "blank_votes"
+    mapping[6] = "null_votes"
+
+    ## For remaining columns starting at index 7, in pairs.
+    ## Use the first non-null entry of each party acronym column as the column name.
+    cols= _df.shape[1]
+    for col in range(7, cols, 2):
+        ## Extract the party acronym from the first non-null entry.
+        try:
+            party_acronym = _df.iloc[:, col].dropna().iloc[0]
+        except IndexError:
+            ## If the column is empty, use a generic name.
+            party_acronym = f"party{col}"
+        mapping[col] = party_acronym
+        if col + 1 < cols:
+            mapping[col + 1] = f"{party_acronym}_votes"
+        
+    return mapping
+
+
 def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
     """
     Generate SQL Data Definition Language (DDL) statement and insertion commands from a CSV or Excel file.

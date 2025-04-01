@@ -7,6 +7,7 @@
 - FIX Reading and Cleaning block of main_ddl to only process text files!! -- DONE
 - Find headers for FC data files to use in creating their SQL scripts
 - Run new sql files in server to upload data to server
+- Tidy up dictionaries in report
 **ANNOTATE ALL POINTS ABOVE IN THE REPORT**
 ---
 
@@ -34,3 +35,7 @@ Freguesias files INFO:
 - **AFTER PARSE 1 & 2**:
   - 76f: same as before parse 1 and 2
   - 79f and later: single column with either numerical 0 or numerical 5000
+
+Inscritos, votações, brancos, nulos.
+
+ETL TABELAS QUERIES ESCREVE!!!
