@@ -7,19 +7,19 @@ from myDataMethods import extract_dataframe_from_excel
 def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     """
     Generate SQL Data Definition/Manipulation Language script containing create table statements as well as insertion statemtens from a CSV or Excel file.
-
+    
     This function reads the provided file (CSV, XLS, or XLSX) into a pandas DataFrame, maps its data types to SQL
     types, and constructs a CREATE TABLE statement along with INSERT commands for each row of data. This facilitates
     an ETL process by generating both the table definition and the corresponding data insertion queries.
-
+    
     Parameters:
         file_path (str): Full contextual path to the input file (.csv, .xls, or .xlsx).
-
+    
     Returns:
         tuple: A tuple containing:
             - pandas.DataFrame: The data read from the input file.
             - str: The SQL DDL statement including the table creation and insertion commands.
-
+    
     Raises:
         ValueError: If the file format is unsupported or if an error occurs during file reading.
     """
@@ -27,10 +27,12 @@ def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     ## Extract the file name and extension
     file_name = os.path.basename(file_path)
     base_name, _ = os.path.splitext(file_name)
+    base_name = base_name.lower()
 
+    
     ## Read the file into a DataFrame based on its extension using custom method
     df = extract_dataframe_from_excel(file_path)
-
+    
     ## Define mapping from pandas data types to SQL data types
     dtype_mapping = {
         'object': 'TEXT',
@@ -78,7 +80,7 @@ def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     ddl += "\n"
     
     return df, ddl
-    
+
 
 def save_sql_script(sql_script: str, output_dir: str) -> None:
     """

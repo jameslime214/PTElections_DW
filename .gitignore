@@ -8,3 +8,6 @@ DATA FILES/Extracted_Data/
 
 # Cleaned data excel files
 DATA FILES/Cleaned_Data/
+
+# SQL scripts
+SQL_scripts/ddl-dml/

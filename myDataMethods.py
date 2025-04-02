@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-import openpyxl
 
 
 def iter_filepaths(directory: str):
@@ -193,7 +192,7 @@ def parse_FC76_data(df):
     
     This function extracts the numeric part and returns the column as an int64.
     """
-    import pandas as pd
+
     cleaned_df = df.copy()
     
     def process_value(val):
@@ -244,10 +243,10 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
 
     mapping = {}
     ## Determine names for the first two columns based on base_name.
-    if _name.endswith("c"):
+    if _name.lower().endswith("c"):
         mapping[0] = "municipality_code"
         mapping[1] = "municipality_name"
-    elif _name.endswith("f"):
+    elif _name.lower().endswith("f"):
         mapping[0] = "parish_code"
         mapping[1] = "parish_name"
     else:
