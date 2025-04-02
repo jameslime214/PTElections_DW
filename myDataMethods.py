@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import openpyxl
-import psycopg2
 
 
 def iter_filepaths(directory: str):
@@ -66,7 +65,12 @@ def extract_dataframe_from_excel(file_path: str) -> pd.DataFrame:
 
     try:
         ## Read the Excel file
-        df = pd.read_csv(file_path) if ext == '.csv' else pd.read_excel(file_path, engine='openpyxl')
+        if ext == '.csv':
+            df = pd.read_csv(file_path)
+        elif ext == '.xls':
+            df = pd.read_excel(file_path, engine='xlrd')
+        elif ext == '.xlsx':
+            df = pd.read_excel(file_path, engine='openpyxl')
         return df
     except Exception as e:
         raise ValueError(f"Error reading Excel file: {str(e)}")
@@ -274,83 +278,3 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
         
     return mapping
 
-
-def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
-    """
-    Generate SQL Data Definition/Manipulation Language script containing create table statements as well as insertion statemtens from a CSV or Excel file.
-
-    This function reads the provided file (CSV, XLS, or XLSX) into a pandas DataFrame, maps its data types to SQL
-    types, and constructs a CREATE TABLE statement along with INSERT commands for each row of data. This facilitates
-    an ETL process by generating both the table definition and the corresponding data insertion queries.
-
-    Parameters:
-        file_path (str): Path to the input file (.csv, .xls, or .xlsx).
-
-    Returns:
-        tuple: A tuple containing:
-            - pandas.DataFrame: The data read from the input file.
-            - str: The SQL DDL statement including the table creation and insertion commands.
-
-    Raises:
-        ValueError: If the file format is unsupported or if an error occurs during file reading.
-    """
-    
-    ## Extract the file name and extension
-    base_name, file_ext = os.path.splitext(file_path)
-
-    ## Read the file into a DataFrame based on its extension
-    if file_ext.lower() == '.csv':
-        df = pd.read_csv(file_path)
-    elif file_ext.lower() in ['.xls', '.xlsx']:
-        df = pd.read_excel(file_path)
-    else:
-        raise ValueError("Unsupported file format. Please use .csv, .xls, or .xlsx files")
-
-    ## Define mapping from pandas data types to SQL data types
-    dtype_mapping = {
-        'object': 'TEXT',
-        'int64': 'INTEGER',
-        'float64': 'NUMERIC',
-        'datetime64[ns]': 'TIMESTAMP',
-        'bool': 'BOOLEAN'
-    }
-    
-    ## Build a list of column definitions for the CREATE TABLE statement
-    columns = []
-    for column, dtype in df.dtypes.items():
-        sql_type = dtype_mapping.get(str(dtype), 'TEXT')
-        columns.append(f'    "{column}" {sql_type}')
-    
-    ## Construct the CREATE TABLE DDL statement
-    ddl = f"CREATE TABLE IF NOT EXISTS {base_name} (\n"
-    ddl += ",\n".join(columns)
-    ddl += "\n);"
-    
-    ## Prepare a comma-separated list of column names for the INSERT statements
-    columns_list = ", ".join([f'"{col}"' for col in df.columns])
-    insert_statements = []
-    
-    ## Generate an INSERT statement for each row in the DataFrame
-    for index, row in df.iterrows():
-        values = []
-        for col in df.columns:
-            if pd.isna(row[col]):
-                values.append('NULL')
-            elif isinstance(row[col], (int, float)):
-                values.append(str(row[col]))
-            elif isinstance(row[col], bool):
-                values.append('TRUE' if row[col] else 'FALSE')
-            elif isinstance(row[col], str):
-                ## Escape single quotes in string values by replacing them with two single quotes
-                values.append(f"'{str(row[col]).replace('\'', '\'\'')}'")
-            else:
-                values.append(str(row[col]))
-        values_str = ", ".join(values)
-        insert_statements.append(f"INSERT INTO {base_name} ({columns_list}) VALUES ({values_str});")
-    
-    ## Append the INSERT statements to the DDL with a separating newline
-    ddl += "\n\n" + "\n".join(insert_statements)
-    ddl += "\n"
-    
-    return df, ddl
-    
