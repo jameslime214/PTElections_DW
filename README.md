@@ -18,4 +18,5 @@
 3. Run the py modules before executing the main notebooks.
 4. **Execute main_Extract** block-by-block.
 5. **Execute main_Load** block-by-block.
-6. **Execute main_Transform** block-by-block.
+6. **Execute main_server** block-by-block.
+7. **Execute main_Transform** block-by-block.
