@@ -15,6 +15,7 @@
 ### How to use the program
 1. **Make a python virtual environment** inside the main project directory, it is suggested to use python 3.12.8 as that is the version that was used in developing this project.
 2. **Run in terminal** this command: "pip install -r requirements.txt". This will give you the necessary packages.
-3. **Execute main_Extract** block-by-block.
-4. **Execute main_Transform** block-by-block.
+3. Run the py modules before executing the main notebooks.
+4. **Execute main_Extract** block-by-block.
 5. **Execute main_Load** block-by-block.
+6. **Execute main_Transform** block-by-block.

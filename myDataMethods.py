@@ -1,44 +1,7 @@
 import os
 import pandas as pd
+import openpyxl
 import psycopg2
-
-
-def run_sql_in_server(file_path: str, _cursor: psycopg2.extensions.cursor):
-    """
-    Run a SQL file in the PostgreSQL server using the provided cursor.
-    """
-    ## Ensure filetype is .sql
-    if os.path.splitext(file_path)[1].lower() != '.sql':
-        raise ValueError("Unsupported file format. This function only processes .sql files.")
-    else:
-        print(f"Running SQL file: {file_path}")
-        with open(file_path, 'r') as file:
-            _cursor.execute(file.read())
-    
-
-def read_data_from_table(table_name: str, _cursor: psycopg2.extensions.cursor):
-    """
-    Retrieve and print all records from the specified database table.
-
-    This function executes a SQL query to select every record from the table 
-    identified by 'table_name'. It then fetches the resulting rows and prints each 
-    one to the standard output.
-
-    Parameters:
-        table_name: The name of the table from which to retrieve data.
-        _cursor: A database cursor object used to execute SQL commands.
-
-    Returns:
-        None
-
-    Note:
-        Ensure that 'table_name' is a trusted input, as it is directly inserted into the SQL statement.
-        For untrusted input, consider using parameterized queries to prevent SQL injection.
-    """
-    _cursor.execute(f"SELECT * FROM {table_name};")
-    rows = _cursor.fetchall()
-    for row in rows:
-        print(row)
 
 
 def iter_filepaths(directory: str):
@@ -98,12 +61,12 @@ def extract_dataframe_from_excel(file_path: str) -> pd.DataFrame:
     """
     ## Ensure the file has an Excel extension
     ext = os.path.splitext(file_path)[1].lower()
-    if ext not in ['.xls', '.xlsx']:
-        raise ValueError("Unsupported file format. This function only processes Excel files.")
+    if ext not in ['.xls', '.xlsx', '.csv']:
+        raise ValueError("Unsupported file format. This function only processes Excel files, including csv.")
 
     try:
         ## Read the Excel file
-        df = pd.read_excel(file_path)
+        df = pd.read_csv(file_path) if ext == '.csv' else pd.read_excel(file_path, engine='openpyxl')
         return df
     except Exception as e:
         raise ValueError(f"Error reading Excel file: {str(e)}")
@@ -314,7 +277,7 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
 
 def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
     """
-    Generate SQL Data Definition Language (DDL) statement and insertion commands from a CSV or Excel file.
+    Generate SQL Data Definition/Manipulation Language script containing create table statements as well as insertion statemtens from a CSV or Excel file.
 
     This function reads the provided file (CSV, XLS, or XLSX) into a pandas DataFrame, maps its data types to SQL
     types, and constructs a CREATE TABLE statement along with INSERT commands for each row of data. This facilitates
@@ -331,14 +294,14 @@ def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
     Raises:
         ValueError: If the file format is unsupported or if an error occurs during file reading.
     """
-    ## Extract the file extension and convert it to lowercase (remove the leading dot)
-    _, ext = os.path.splitext(file_path)
-    file_extension = ext.lower()[1:]
+    
+    ## Extract the file name and extension
+    base_name, file_ext = os.path.splitext(file_path)
 
     ## Read the file into a DataFrame based on its extension
-    if file_extension == 'csv':
+    if file_ext.lower() == '.csv':
         df = pd.read_csv(file_path)
-    elif file_extension in ['xls', 'xlsx']:
+    elif file_ext.lower() in ['.xls', '.xlsx']:
         df = pd.read_excel(file_path)
     else:
         raise ValueError("Unsupported file format. Please use .csv, .xls, or .xlsx files")
@@ -352,9 +315,6 @@ def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
         'bool': 'BOOLEAN'
     }
     
-    ## Extract the table name from the file path (use the file name without extension, in lowercase)
-    table_name = os.path.splitext(os.path.basename(file_path))[0].lower()
-    
     ## Build a list of column definitions for the CREATE TABLE statement
     columns = []
     for column, dtype in df.dtypes.items():
@@ -362,7 +322,7 @@ def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
         columns.append(f'    "{column}" {sql_type}')
     
     ## Construct the CREATE TABLE DDL statement
-    ddl = f"CREATE TABLE IF NOT EXISTS {table_name} (\n"
+    ddl = f"CREATE TABLE IF NOT EXISTS {base_name} (\n"
     ddl += ",\n".join(columns)
     ddl += "\n);"
     
@@ -382,11 +342,11 @@ def generate_ddl_from_file(file_path: str) -> tuple[pd.DataFrame, str]:
                 values.append('TRUE' if row[col] else 'FALSE')
             elif isinstance(row[col], str):
                 ## Escape single quotes in string values by replacing them with two single quotes
-                values.append(f"'{row[col].replace('\'', '\'\'')}'")
+                values.append(f"'{str(row[col]).replace('\'', '\'\'')}'")
             else:
                 values.append(str(row[col]))
         values_str = ", ".join(values)
-        insert_statements.append(f"INSERT INTO {table_name} ({columns_list}) VALUES ({values_str});")
+        insert_statements.append(f"INSERT INTO {base_name} ({columns_list}) VALUES ({values_str});")
     
     ## Append the INSERT statements to the DDL with a separating newline
     ddl += "\n\n" + "\n".join(insert_statements)
