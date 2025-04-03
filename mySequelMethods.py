@@ -17,7 +17,7 @@ def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     
     Returns:
         tuple: A tuple containing:
-            - pandas.DataFrame: The data read from the input file.
+            - pd.DataFrame: The data read from the input file.
             - str: The SQL DDL statement including the table creation and insertion commands.
     
     Raises:
@@ -28,7 +28,6 @@ def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     file_name = os.path.basename(file_path)
     base_name, _ = os.path.splitext(file_name)
     base_name = base_name.lower()
-
     
     ## Read the file into a DataFrame based on its extension using custom method
     df = extract_dataframe_from_excel(file_path)
@@ -58,7 +57,7 @@ def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     insert_statements = []
     
     ## Generate an INSERT statement for each row in the DataFrame
-    for index, row in df.iterrows():
+    for _, row in df.iterrows():
         values = []
         for col in df.columns:
             if pd.isna(row[col]):
@@ -80,7 +79,7 @@ def generate_ddl_from_excel(file_path: str) -> tuple[pd.DataFrame, str]:
     ddl += "\n"
     
     return df, ddl
-
+    
 
 def save_sql_script(sql_script: str, output_dir: str) -> None:
     """
@@ -94,6 +93,7 @@ def save_sql_script(sql_script: str, output_dir: str) -> None:
         sql_script: The SQL script string to save.
         output_dir: The folder path where the SQL file will be saved.
     """
+    
     ## Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
     
@@ -125,7 +125,7 @@ def save_sql_script(sql_script: str, output_dir: str) -> None:
         print(f"Successfully saved {saved_filename} to {output_dir}")
     except Exception as e:
         raise ValueError(f"Error writing SQL file: {str(e)}")
-
+    
 
 def run_sql_in_server(file_path: str, _cursor: psycopg2.extensions.cursor):
     """
@@ -140,26 +140,25 @@ def run_sql_in_server(file_path: str, _cursor: psycopg2.extensions.cursor):
             _cursor.execute(file.read())
     
 
-def read_table_from_server(table_name: str, _cursor: psycopg2.extensions.cursor):
+def read_table_from_server(table_name: str, _cursor: psycopg2.extensions.cursor) -> None:
     """
     Retrieve and print all records from the specified database table.
 
     This function executes a SQL query to select every record from the table 
     identified by 'table_name'. It then fetches the resulting rows and prints each 
     one to the standard output.
-
+    
     Parameters:
         table_name: The name of the table from which to retrieve data.
         _cursor: A database cursor object used to execute SQL commands.
-
-    Returns:
-        None
-
+        
     Note:
         Ensure that 'table_name' is a trusted input, as it is directly inserted into the SQL statement.
         For untrusted input, consider using parameterized queries to prevent SQL injection.
     """
+    
     _cursor.execute(f"SELECT * FROM {table_name};")
     rows = _cursor.fetchall()
     for row in rows:
         print(row)
+    

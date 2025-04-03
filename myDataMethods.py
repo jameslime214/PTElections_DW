@@ -8,10 +8,12 @@ def iter_filepaths(directory: str):
     
     Parameters:
         directory: The path to the directory.
-        
+    
     Yields:
         str: The full file path of each file in the directory.
     """
+    
+    ## Loop to create iterator for each file in the directory.
     for filename in os.listdir(directory):
         filepath = os.path.join(directory, filename)
         if os.path.isfile(filepath):
@@ -25,19 +27,20 @@ def extract_dataframe_from_txt(file_path: str, *, _encoding: str = 'utf-8') -> p
     Parameters:
         file_path: Path to the input text file
         encoding: Character encoding to use when reading the file
-        
+    
     Returns:
-        pandas.DataFrame: Raw data extracted from the text file
-        
+        pd.DataFrame: Raw data extracted from the text file
+    
     Raises:
         ValueError: If the file is not a .txt file or if an error occurs during reading
     """
+    
     ## Ensure the file has a .txt extension
     if os.path.splitext(file_path)[1].lower() != '.txt':
         raise ValueError("Unsupported file format. This function only processes .txt files.")
-
+    
+    ## Read the file as fixed-width format without header
     try:
-        ## Read the file as fixed-width format without header
         df = pd.read_fwf(file_path, encoding= _encoding, header= None)
         return df
     except Exception as e:
@@ -57,11 +60,12 @@ def extract_dataframe_from_excel(file_path: str) -> pd.DataFrame:
     Raises:
         ValueError: If the file is not an Excel file or if an error occurs during reading
     """
+    
     ## Ensure the file has an Excel extension
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in ['.xls', '.xlsx', '.csv']:
         raise ValueError("Unsupported file format. This function only processes Excel files, including csv.")
-
+    
     try:
         ## Read the Excel file
         if ext == '.csv':
@@ -87,23 +91,20 @@ def save_dataframe_to_excel(df: pd.DataFrame, output_path: str, *, _replace: boo
         df: DataFrame to save
         output_path: Full path where the Excel file will be saved
         _replace: Boolean flag indicating whether to overwrite an existing file (default: False)
-        
-    Returns:
-        None
     """
     
-    # Ensure the target directory exists
+    ## Ensure the target directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    # Only modify the output_path if _replace is False
+    ## Only modify the output_path if _replace is False
     if not _replace:
         base, ext = os.path.splitext(output_path)
         counter = 1
         while os.path.exists(output_path):
             output_path = f"{base}_{counter}{ext}"
             counter += 1
-
-    # Write the DataFrame to Excel (overwrites if _replace is True)
+    
+    ## Write the DataFrame to Excel (overwrites if _replace is True)
     try:
         with pd.ExcelWriter(output_path, engine='openpyxl', mode='w') as writer:
             df.to_excel(writer, index=False)
@@ -112,6 +113,34 @@ def save_dataframe_to_excel(df: pd.DataFrame, output_path: str, *, _replace: boo
         print(f"Successfully saved {saved_filename} to {target_directory}")
     except Exception as e:
         raise ValueError(f"Error writing Excel file: {str(e)}")
+    
+
+def process_value(val):
+    """
+    This is a helper function to process the intermediate column in 76 files.
+
+    Args:
+        val: Value to be processed. Expected to be a string or numeric type.
+
+    Returns:
+        (numeric _or_ null): Returns the processed value as an integer or null if none existed.
+    """
+    
+    ## Convert value to string and strip surrounding whitespace.
+    s = str(val).strip()
+    ## If no voting data, pattern starts with "500"
+    if s.startswith("500"):
+        return 5000
+    else:
+        ## Remove trailing '0' if present.
+        if s.endswith("0"):
+            s = s[:-1]
+        ## Remove leading zeros.
+        s = s.lstrip("0")
+        try:
+            return int(s) if s != "" else 0
+        except Exception:
+            return pd.NA
     
 
 def parse_FC_data_1(df: pd.DataFrame) -> pd.DataFrame:
@@ -128,6 +157,7 @@ def parse_FC_data_1(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pandas.DataFrame: DataFrame with zero-only columns removed.
     """
+    
     ## Create a copy to avoid modifying the original DataFrame
     cleaned_df = df.copy()
     
@@ -146,7 +176,7 @@ def parse_FC_data_1(df: pd.DataFrame) -> pd.DataFrame:
     
     ## Return DataFrame with only the columns to keep
     return cleaned_df[columns_to_keep]
-
+    
 
 def parse_FC_data_2(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -159,32 +189,28 @@ def parse_FC_data_2(df: pd.DataFrame) -> pd.DataFrame:
     
     Parameters:
         df: Input DataFrame.
-        
+    
     Returns:
         pandas.DataFrame: Modified DataFrame with split first column.
     """
-    ## Create a copy to avoid modifying the original DataFrame
-    new_df = df.copy()
     
-    ## Ensure values are treated as strings
+    new_df = df.copy()
     col0 = new_df[0].astype(str)
-
+    
     ## Extract numeric part from the first column using a regex
     numeric_part = col0.str.extract(r'^(\d+)')[0].astype('int64')
     
     ## Extract text part from the first column (trim any whitespace)
     text_part = col0.str.extract(r'^\d+(.*)$')[0].str.strip()
     
-    ## Create a new DataFrame with the extracted parts and all remaining columns
+    ## Create a new DataFrame with the extracted parts and all remaining columns, then reset column indeces
     result_df = pd.concat([numeric_part, text_part, new_df.iloc[:, 1:]], axis=1)
-    
-    ## Reset the column indeces
     result_df.columns = range(len(result_df.columns))
     
     return result_df
+    
 
-
-def parse_FC76_data(df):
+def parse_FC76_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Process the intermediate column (column index 2) in 76 files.
     
@@ -194,29 +220,13 @@ def parse_FC76_data(df):
     
     This function extracts the numeric part and returns the column as an int64.
     """
-
-    cleaned_df = df.copy()
     
-    def process_value(val):
-        # Convert value to string and strip surrounding whitespace.
-        s = str(val).strip()
-        # If no voting data, pattern starts with "500"
-        if s.startswith("500"):
-            return 5000
-        else:
-            # Remove trailing '0' if present.
-            if s.endswith("0"):
-                s = s[:-1]
-            # Remove leading zeros.
-            s = s.lstrip("0")
-            try:
-                return int(s) if s != "" else 0
-            except Exception:
-                return pd.NA
-
+    ## Create a copy to avoid modifying the original DataFrame
+    cleaned_df = df.copy()
+    ## Apply helper function to process the intermediate column (index 2).
     cleaned_df[2] = cleaned_df[2].apply(process_value).astype("Int64")
     return cleaned_df
-
+    
 
 def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
     """
@@ -226,10 +236,10 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
         _ext: The file extension. A mapping is only created if this is ".txt".
         _name: The base name of the file which determines naming for the first two columns.
         _df: The DataFrame to be processed.
-
+    
     Returns:
         A dictionary where the keys are the original column indices and the values are the new column names.
-
+    
     Naming rules:
         - Only applies when file_ext is ".txt".
         - If base_name ends with "c": first two columns correspond to municipality code and name.
@@ -239,10 +249,11 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
             Column 3-6 are total vote data.
         - For any remaining columns (from index 7 onward), assign (party acronym, vote count) pairs.
     """
+    
     ## Only create a mapping for .txt files.
     if _ext.lower() != ".txt":
         return {}
-
+    
     mapping = {}
     ## Determine names for the first two columns based on base_name.
     if _name.lower().endswith("c"):
@@ -255,16 +266,15 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
         ## Fallback names if base_name doesn't end with 'c' or 'f'
         mapping[0] = "code"
         mapping[1] = "name"
-
+    
     ## Set fixed names for the next five columns.
     mapping[2] = "num"
     mapping[3] = "total_registered"
     mapping[4] = "total_votes"
     mapping[5] = "blank_votes"
     mapping[6] = "null_votes"
-
-    ## For remaining columns starting at index 7, in pairs.
-    ## Use the first non-null entry of each party acronym column as the column name.
+    
+    ## For the rest of the columns, use the first non-null entry of each party acronym column as the column name.
     cols= _df.shape[1]
     for col in range(7, cols, 2):
         ## Extract the party acronym from the first non-null entry.
@@ -276,6 +286,6 @@ def create_column_mapping(_ext: str, _name: str, _df: pd.DataFrame) -> dict:
         mapping[col] = party_acronym
         if col + 1 < cols:
             mapping[col + 1] = f"{party_acronym}_votes"
-        
+    
     return mapping
-
+    
